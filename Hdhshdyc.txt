@@ -4,54 +4,133 @@
 --         Usage: paste into your executor and run
 -- ============================================================
 
-local function getSafeService(name)
-    local ok, svc = pcall(function() 
-        return (cloneref or function(i) return i end)(game:GetService(name)) 
-    end)
-    return ok and svc or game:GetService(name)
-end
+-- ============================================================
+-- ENVIRONMENT DETECTION
+-- ============================================================
+local IS_EXECUTOR = (syn or KRNL_LOADED or FLUXUS_LOADED 
+    or getgenv ~= nil or identifyexecutor ~= nil)
 
-if not cloneref then
-    local a = Instance.new("Part")
-    local InstanceList = nil
-    for b, c in pairs(getreg()) do
-        if type(c) == "table" and #c then
-            if rawget(c, "__mode") == "kvs" then
-                for d, e in pairs(c) do
-                    if e == a then InstanceList = c; break end
-                end
-            end
-        end
+local EXECUTOR_NAME = "unknown"
+pcall(function()
+    if identifyexecutor then
+        EXECUTOR_NAME = identifyexecutor()
     end
-    a:Destroy()
-    if InstanceList then
-        getgenv().cloneref = function(inst)
-            for b, c in pairs(InstanceList) do
-                if c == inst then
-                    InstanceList[b] = nil
-                    return inst
+end)
+
+-- ============================================================
+-- CLONEREF FALLBACK (robusto)
+-- ============================================================
+if not cloneref then
+    -- Metodo 1: getreg() registry scan (più affidabile)
+    local success = pcall(function()
+        local probe = Instance.new("Part")
+        local list  = nil
+
+        for _, v in pairs(getreg()) do
+            if type(v) == "table" and rawget(v, "__mode") == "kvs" then
+                for _, item in pairs(v) do
+                    if item == probe then list = v; break end
                 end
             end
-            return inst
+            if list then break end
         end
-    else
+
+        probe:Destroy()
+
+        if list then
+            getgenv().cloneref = function(inst)
+                if typeof(inst) ~= "Instance" then return inst end
+                for k, v in pairs(list) do
+                    if v == inst then
+                        list[k] = nil
+                        return inst
+                    end
+                end
+                return inst
+            end
+        end
+    end)
+
+    -- Metodo 2: fallback se getreg() non disponibile
+    if not success or not cloneref then
         getgenv().cloneref = function(inst) return inst end
     end
 end
 
-local Players = getSafeService("Players")
-local CoreGui = getSafeService("CoreGui")
+-- ============================================================
+-- SAFE SERVICE GETTER
+-- ============================================================
+-- Cache dei servizi già ottenuti (evita chiamate ripetute)
+local serviceCache = {}
 
-local function getSafeParent()
-    local target
-    local success = pcall(function()
-        target = (gethui and gethui()) or CoreGui
+local function getSafeService(name)
+    if serviceCache[name] then return serviceCache[name] end
+
+    local svc
+    -- Prova con cloneref
+    local ok = pcall(function()
+        svc = cloneref(game:GetService(name))
     end)
-    if not success or not target then
-        target = Players.LocalPlayer:WaitForChild("PlayerGui")
+    -- Fallback senza cloneref
+    if not ok or not svc then
+        ok = pcall(function()
+            svc = game:GetService(name)
+        end)
     end
-    return target
+
+    if ok and svc then
+        serviceCache[name] = svc
+        return svc
+    end
+
+    return nil
 end
+
+-- ============================================================
+-- SAFE PARENT GETTER
+-- ============================================================
+-- Priorità: gethui > syn.protect_gui > CoreGui > PlayerGui
+local function getSafeParent(gui)
+    -- gethui(): container invisibile ai GetDescendants() del gioco
+    if gethui then
+        local ok, hui = pcall(gethui)
+        if ok and hui then return hui end
+    end
+
+    -- syn.protect_gui: Synapse X, protegge la GUI dal gioco
+    if syn and syn.protect_gui and gui then
+        pcall(function() syn.protect_gui(gui) end)
+        local ok, cg = pcall(function()
+            return getSafeService("CoreGui")
+        end)
+        if ok and cg then return cg end
+    end
+
+    -- CoreGui standard
+    local ok, cg = pcall(function()
+        return getSafeService("CoreGui")
+    end)
+    if ok and cg then return cg end
+
+    -- Ultimo fallback: PlayerGui
+    local Players = getSafeService("Players")
+    if Players and Players.LocalPlayer then
+        return Players.LocalPlayer:WaitForChild("PlayerGui", 10)
+    end
+
+    return nil
+end
+
+-- ============================================================
+-- SERVICES (con cache automatica)
+-- ============================================================
+local Players          = getSafeService("Players")
+local CoreGui          = getSafeService("CoreGui")
+local UserInputService = getSafeService("UserInputService")
+local TweenService     = getSafeService("TweenService")
+local RunService       = getSafeService("RunService")
+local LocalPlayer      = Players and Players.LocalPlayer
+local PlayerGui        = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 10)
 
 -- ============================================================
 -- SERVICES (all cloneref'd for executor safety)
@@ -274,7 +353,7 @@ SG.Name = "UniversalGUIExplorer"
 SG.ResetOnSpawn = false
 SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 SG.DisplayOrder = 999
-SG.Parent = getSafeParent()
+SG.Parent = getSafeParent(SG)
 
 local MF = Instance.new("Frame")
 MF.Name = "Main"
