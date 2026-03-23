@@ -4,12 +4,6 @@
 --         Usage: paste into your executor and run
 -- ============================================================
 
-
-
--- Credit: Alex | JJsploit Support
--- Adds cloneref support if the executor doesn't have it natively
--- ============================================================
-
 local function getSafeService(name)
     local ok, svc = pcall(function() 
         return (cloneref or function(i) return i end)(game:GetService(name)) 
