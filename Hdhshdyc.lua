@@ -86,6 +86,20 @@ local function getSafeService(name)
     return nil
 end
 
+local function createSafeGui(name, displayOrder)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = name
+    gui.DisplayOrder = displayOrder or 999999
+    gui.ResetOnSpawn = false
+    
+    local parent = getSafeParent(gui)
+    if parent then
+        gui.Parent = parent
+    end
+    
+    return gui
+end
+
 -- ============================================================
 -- SAFE PARENT GETTER
 -- ============================================================
