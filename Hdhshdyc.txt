@@ -129,8 +129,7 @@ local CoreGui          = getSafeService("CoreGui")
 local UserInputService = getSafeService("UserInputService")
 local TweenService     = getSafeService("TweenService")
 local RunService       = getSafeService("RunService")
-local LocalPlayer      = Players and Players.LocalPlayer
-local PlayerGui        = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 10)
+local LocalPlayer      = Players and P
 
 -- ============================================================
 -- SERVICES (all cloneref'd for executor safety)
@@ -348,12 +347,7 @@ end
 -- ============================================================
 -- BUILD MAIN GUI
 -- ============================================================
-local SG = Instance.new("ScreenGui")
-SG.Name = "UniversalGUIExplorer"
-SG.ResetOnSpawn = false
-SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-SG.DisplayOrder = 999
-SG.Parent = getSafeParent(SG)
+local SG = createSafeGui("UniversalGUIExplorer", 999999)
 
 local MF = Instance.new("Frame")
 MF.Name = "Main"
