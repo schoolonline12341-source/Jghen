@@ -86,6 +86,41 @@ local function getSafeService(name)
     return nil
 end
 
+local function getSafeParent(obj)
+    local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success and coreGui then
+        return coreGui
+    end
+    
+    local player = game:GetService("Players").LocalPlayer
+    if player then
+        return player:FindFirstChildOfClass("PlayerGui")
+    end
+    
+    return nil
+end
+
+local function createSafeGui(name, displayOrder)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = name
+    gui.DisplayOrder = displayOrder or 999999
+    gui.ResetOnSpawn = false
+    
+    local parent = getSafeParent(gui)
+    if parent then
+        gui.Parent = parent
+    end
+    
+    if cloneref then
+        pcall(function()
+            cloneref(gui)
+        end)
+    end
+    
+    return gui
+end
+
+
 local function createSafeGui(name, displayOrder)
     local gui = Instance.new("ScreenGui")
     gui.Name = name
